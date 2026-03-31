@@ -21,8 +21,6 @@ class FreeAdmittanceMouse:
         for i, adr in enumerate(self.dof_adr):
             self.data.qpos[adr] = self.q_init[i]
         mujoco.mj_forward(self.model, self.data)
-
-        # 末端初始位置（Z固定）
         self.init_pos = np.array(self.data.body("panda_hand").xpos)
 
         # 控制参数 末端 PD 控制的刚度（K_p）和阻尼（K_d）
@@ -64,8 +62,9 @@ class FreeAdmittanceMouse:
             self.adm_pos += self.adm_vel * dt
             self.adm_pos[:3] = np.clip(self.adm_pos[:3], -self.max_pos_offset, self.max_pos_offset)
             self.adm_pos[3:] = np.clip(self.adm_pos[3:], -self.max_rot_offset, self.max_rot_offset)
-            self.adm_pos[1:] = 0
-            self.adm_vel[1:] = 0
+            # 1.导纳限制x方向 只有位置导纳，姿态不受外力影响
+            # self.adm_pos[1:] = 0
+            # self.adm_vel[1:] = 0
 
         else:
             # 外力消失 → 锁定当前位置
@@ -82,6 +81,8 @@ class FreeAdmittanceMouse:
 
         rot_target = rot_offset * rot_current
         quat_d = np.roll(rot_target.as_quat(), 1)
+        # 2.锁姿态
+        # quat_d = self.data.body("panda_hand").xquat.copy()
 
         # ===== 控制计算 ===== OSC（操作空间控制）
         X_e = self.compute_spatial_error(np.array(self.data.body("panda_hand").xpos),
@@ -92,21 +93,17 @@ class FreeAdmittanceMouse:
         V = J @ qdot
         Lambda = self.dynamics_calc.compute_task_space_mass_matrix(q, 6) #将关节质量分布映射到末端
         V_e = -V
-        S = np.diag([0, 0, 0, 1, 0, 0])
-        S_c = np.eye(6) - S
-        # 柔顺方向（X）——导纳
-        F_motion = S @ (self.K_p @ X_e + self.K_d @ V_e)
-
-        K_stiff = 2000
-        D_stiff = 50
-
-        F_constraint = S_c @ (K_stiff * X_e + D_stiff * V_e)
-
-
-        F_task = Lambda @ (F_motion + F_constraint)
+        # 3.柔顺方向（X）——导纳
+        # S = np.diag([0, 0, 0, 1, 0, 0])
+        # S_c = np.eye(6) - S
+        # F_motion = S @ (self.K_p @ X_e + self.K_d @ V_e)
+        # K_stiff = 2000
+        # D_stiff = 50
+        # F_constraint = S_c @ (K_stiff * X_e + D_stiff * V_e)
+        # F_task = Lambda @ (F_motion + F_constraint)
 
 
-        # F_task = Lambda @ (self.K_p @ X_e + self.K_d @ V_e)
+        F_task = Lambda @ (self.K_p @ X_e + self.K_d @ V_e)
         tau = J.T @ F_task + self.dynamics_calc.compute_coriolis_gravity(q, qdot)
         self.data.ctrl[:] = tau
 
