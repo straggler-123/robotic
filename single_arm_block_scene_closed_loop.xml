@@ -21,8 +21,8 @@
     <material name="block_red" rgba="0.75 0.20 0.20 1" />
   </asset>
 
-  <include file="panda.xml" />
 
+  <include file="panda.xml" />
   <worldbody>
     <geom name="floor" pos="0 0 0" group="1" size="0 0 .1" type="plane" material="plane" condim="3" />
 
@@ -37,12 +37,12 @@
             solref="0.003 1" />
     </body>
 
-    <body name="block_body" pos="0.50 0.00 0.20">
+    <body name="block_body" pos="0.50 0.10 0.25">
       <joint type="free" />
       <inertial pos="0 0 0" mass="0.10" diaginertia="2.0e-5 2.0e-5 2.0e-5" />
       <geom name="block_geom"
             type="box"
-            size="0.015 0.015 0.04"
+            size="0.015 0.015 0.025"
             material="block_red"
             condim="6"
             friction="1.5 0.15 0.02"
